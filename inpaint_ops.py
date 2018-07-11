@@ -207,6 +207,18 @@ def bbox2mask(bbox, config, name='mask'):
     return mask
 
 
+def mask_path(x, mask):
+    """Crop local patch according to mask.
+
+    Args:
+        x: input
+        mask: 0,1 mask have the same size of x
+
+    Returns:
+        tf.Tensor: local patch
+
+    """
+    return x*mask
 def local_patch(x, bbox):
     """Crop local patch according to bbox.
 

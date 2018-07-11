@@ -53,7 +53,8 @@ if __name__ == "__main__":
         for var in vars_list:
             vname = var.name
             from_name = vname
-            var_value = tf.contrib.framework.load_variable(args.checkpoint_dir, from_name)
+            var_value = tf.contrib.framework.load_variable(args.checkpoint_dir,
+                                                           from_name)
             assign_ops.append(tf.assign(var, var_value))
         sess.run(assign_ops)
         print('Model loaded.')
