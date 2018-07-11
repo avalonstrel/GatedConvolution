@@ -17,7 +17,7 @@ np.random.seed(2018)
 
 @add_arg_scope
 def gen_conv(x, cnum, ksize, stride=1, rate=1, name='conv',
-             padding='SAME', activation=tf.nn.elu, training=True):
+             padding='SAME', activation=tf.nn.relu, training=True):
     """Define conv for generator.
 
     Args:
@@ -89,6 +89,64 @@ def dis_conv(x, cnum, ksize=5, stride=2, name='conv', training=True):
     """
     x = tf.layers.conv2d(x, cnum, ksize, stride, 'SAME', name=name)
     x = tf.nn.leaky_relu(x)
+    return x
+
+@add_arg_scope
+def gated_conv(x, cnum, ksize, stride=1, rate=1, name='gated_conv',
+     padding='SAME', activation=tf.nn.relu, training=True):
+    """Define gated conv for generator. Add a gating filter
+
+    Args:
+        x: Input.
+        cnum: Channel number.
+        ksize: Kernel size.
+        Stride: Convolution stride.
+        Rate: Rate for or dilated conv.
+        name: Name of layers.
+        padding: Default to SYMMETRIC.
+        activation: Activation function after convolution.
+        training: If current graph is for training or inference, used for bn.
+
+    Returns:
+        tf.Tensor: output
+
+    """
+    assert padding in ['SYMMETRIC', 'SAME', 'REFELECT']
+    if padding == 'SYMMETRIC' or padding == 'REFELECT':
+        p = int(rate*(ksize-1)/2)
+        x = tf.pad(x, [[0,0], [p, p], [p, p], [0,0]], mode=padding)
+        padding = 'VALID'
+    x = tf.layers.conv2d(
+        x, cnum, ksize, stride, dilation_rate=rate,
+        activation=activation, padding=padding, name=name)
+
+    gated_mask = tf.layers.conv2d(
+        x, cnum, ksize, stride, dilation_rate=rate,
+        activation=tf.nn.sigmoid, padding=padding, name=name)
+
+    return x * gated_mask
+
+@add_arg_scope
+def gated_deconv(x, cnum, name='upsample', padding='SAME', training=True):
+    """Define gated deconv for generator.
+    The deconv is defined to be a x2 resize_nearest_neighbor operation with
+    additional gen_conv operation.
+
+    Args:
+        x: Input.
+        cnum: Channel number.
+        name: Name of layers.
+        training: If current graph is for training or inference, used for bn.
+
+    Returns:
+        tf.Tensor: output
+
+    """
+    with tf.variable_scope(name):
+        x = resize(x, func=tf.image.resize_nearest_neighbor)
+        x = gated_conv(
+            x, cnum, 3, 1, name=name+'_conv', padding=padding,
+            training=training)
     return x
 
 
@@ -193,7 +251,6 @@ def spatial_discounting_mask(config):
 
     Returns:
         tf.Tensor: spatial discounting mask
-
     """
     gamma = config.SPATIAL_DISCOUNTING_GAMMA
     shape = [1, config.HEIGHT, config.WIDTH, 1]

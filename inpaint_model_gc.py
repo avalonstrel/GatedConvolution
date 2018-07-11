@@ -5,7 +5,6 @@ import cv2
 import neuralgym as ng
 import tensorflow as tf
 from tensorflow.contrib.framework.python.ops import arg_scope
-
 from neuralgym.models import Model
 from neuralgym.ops.summary_ops import scalar_summary, images_summary
 from neuralgym.ops.summary_ops import gradients_summary
@@ -22,9 +21,9 @@ from inpaint_ops import resize_mask_like, contextual_attention
 logger = logging.getLogger()
 
 
-class InpaintCAModel(Model):
+class InpaintGCModel(Model):
     def __init__(self):
-        super().__init__('InpaintCAModel')
+        super().__init__('InpaintGCModel')
 
     def build_inpaint_net(self, x, mask, config=None, reuse=False,
                           training=True, padding='SAME', name='inpaint_net'):
@@ -47,24 +46,24 @@ class InpaintCAModel(Model):
                 arg_scope([gen_conv, gen_deconv],
                           training=training, padding=padding):
             # stage1
-            x = gen_conv(x, cnum, 5, 1, name='conv1')
-            x = gen_conv(x, 2*cnum, 3, 2, name='conv2_downsample')
-            x = gen_conv(x, 2*cnum, 3, 1, name='conv3')
-            x = gen_conv(x, 4*cnum, 3, 2, name='conv4_downsample')
-            x = gen_conv(x, 4*cnum, 3, 1, name='conv5')
-            x = gen_conv(x, 4*cnum, 3, 1, name='conv6')
+            x = gated_conv(x, cnum, 5, 1, name='conv1')
+            x = gated_conv(x, 2*cnum, 3, 2, name='conv2_downsample')
+            x = gated_conv(x, 2*cnum, 3, 1, name='conv3')
+            x = gated_conv(x, 4*cnum, 3, 2, name='conv4_downsample')
+            x = gated_conv(x, 4*cnum, 3, 1, name='conv5')
+            x = gated_conv(x, 4*cnum, 3, 1, name='conv6')
             mask_s = resize_mask_like(mask, x)
-            x = gen_conv(x, 4*cnum, 3, rate=2, name='conv7_atrous')
-            x = gen_conv(x, 4*cnum, 3, rate=4, name='conv8_atrous')
-            x = gen_conv(x, 4*cnum, 3, rate=8, name='conv9_atrous')
-            x = gen_conv(x, 4*cnum, 3, rate=16, name='conv10_atrous')
-            x = gen_conv(x, 4*cnum, 3, 1, name='conv11')
-            x = gen_conv(x, 4*cnum, 3, 1, name='conv12')
-            x = gen_deconv(x, 2*cnum, name='conv13_upsample')
-            x = gen_conv(x, 2*cnum, 3, 1, name='conv14')
-            x = gen_deconv(x, cnum, name='conv15_upsample')
-            x = gen_conv(x, cnum//2, 3, 1, name='conv16')
-            x = gen_conv(x, 3, 3, 1, activation=None, name='conv17')
+            x = gated_conv(x, 4*cnum, 3, rate=2, name='conv7_atrous')
+            x = gated_conv(x, 4*cnum, 3, rate=4, name='conv8_atrous')
+            x = gated_conv(x, 4*cnum, 3, rate=8, name='conv9_atrous')
+            x = gated_conv(x, 4*cnum, 3, rate=16, name='conv10_atrous')
+            x = gated_conv(x, 4*cnum, 3, 1, name='conv11')
+            x = gated_conv(x, 4*cnum, 3, 1, name='conv12')
+            x = gated_deconv(x, 2*cnum, name='conv13_upsample')
+            x = gated_conv(x, 2*cnum, 3, 1, name='conv14')
+            x = gated_deconv(x, cnum, name='conv15_upsample')
+            x = gated_conv(x, cnum//2, 3, 1, name='conv16')
+            x = gated_conv(x, 3, 3, 1, activation=None, name='conv17')
             x = tf.clip_by_value(x, -1., 1.)
             x_stage1 = x
             # return x_stage1, None, None
