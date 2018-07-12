@@ -167,6 +167,7 @@ class InpaintCAModel(Model):
         local_patch_x2 = local_patch(x2, bbox)
         local_patch_batch_complete = local_patch(batch_complete, bbox)
         local_patch_mask = local_patch(mask, bbox)
+
         l1_alpha = config.COARSE_L1_ALPHA
         losses['l1_loss'] = l1_alpha * tf.reduce_mean(tf.abs(local_patch_batch_pos - local_patch_x1)*spatial_discounting_mask(config))
         if not config.PRETRAIN_COARSE_NETWORK:
@@ -189,6 +190,7 @@ class InpaintCAModel(Model):
 
         # gan
         batch_pos_neg = tf.concat([batch_pos, batch_complete], axis=0)
+        
         # local deterministic patch
         local_patch_batch_pos_neg = tf.concat([local_patch_batch_pos, local_patch_batch_complete], 0)
         if config.GAN_WITH_MASK:

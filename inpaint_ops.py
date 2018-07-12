@@ -9,7 +9,7 @@ from neuralgym.ops.layers import resize
 from neuralgym.ops.layers import *
 from neuralgym.ops.loss_ops import *
 from neuralgym.ops.summary_ops import *
-
+from .sn import spectral_normed_weight
 
 logger = logging.getLogger()
 np.random.seed(2018)
@@ -69,6 +69,65 @@ def gen_deconv(x, cnum, name='upsample', padding='SAME', training=True):
             training=training)
     return x
 
+@add_arg_scope
+def gen_snconv(x, cnum, ksize, stride=1, rate=1, name='conv',
+             padding='SAME', activation=tf.nn.relu, training=True):
+    """Define spectral normalization conv for discriminator.
+
+    Args:
+        x: Input.
+        cnum: Channel number.
+        ksize: Kernel size.
+        Stride: Convolution stride.
+        Rate: Rate for or dilated conv.
+        name: Name of layers.
+        padding: Default to SYMMETRIC.
+        activation: Activation function after convolution.
+        training: If current graph is for training or inference, used for bn.
+
+    Returns:
+        tf.Tensor: output
+
+    """
+    assert padding in ['SYMMETRIC', 'SAME', 'REFELECT']
+    if padding == 'SYMMETRIC' or padding == 'REFELECT':
+        p = int(rate*(ksize-1)/2)
+        x = tf.pad(x, [[0,0], [p, p], [p, p], [0,0]], mode=padding)
+        padding = 'VALID'
+
+    fan_in = ksize * ksize * x.get_shape().as_list()[-1]
+    fan_out = ksize * ksize * cnum
+    stddev = np.sqrt(2. / (fan_in))
+    # initializer for w used for spectral normalization
+    w = tf.get_variable("w", [ksize, ksize, x.get_shape()[-1], cnum],
+                        initializer=tf.truncated_normal_initializer(stddev=stddev))
+    x = tf.nn.conv2d(x, spectral_normed_weight(w, update_collection=tf.GraphKeys.UPDATE_OPS),
+                          strides=[1, stride, stride, 1], dilations=[1, rate, rate, 1] padding=padding)
+    return x
+
+
+@add_arg_scope
+def gen_deconv(x, cnum, name='upsample', padding='SAME', training=True):
+    """Define deconv for generator.
+    The deconv is defined to be a x2 resize_nearest_neighbor operation with
+    additional gen_conv operation.
+
+    Args:
+        x: Input.
+        cnum: Channel number.
+        name: Name of layers.
+        training: If current graph is for training or inference, used for bn.
+
+    Returns:
+        tf.Tensor: output
+
+    """
+    with tf.variable_scope(name):
+        x = resize(x, func=tf.image.resize_nearest_neighbor)
+        x = gen_conv(
+            x, cnum, 3, 1, name=name+'_conv', padding=padding,
+            training=training)
+    return x
 
 @add_arg_scope
 def dis_conv(x, cnum, ksize=5, stride=2, name='conv', training=True):

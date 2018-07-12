@@ -1,11 +1,12 @@
 # parameters
 DATASET: 'celebahq'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+MASKDATASET: 'irrmask'
 RANDOM_CROP: False
 VAL: False
 LOG_DIR: full_model_celeba_hq_256
 MODEL_RESTORE: ''  # '20180115220926508503_jyugpu0_places2_NORMAL_wgan_gp_full_model'
 
-GAN: 'wgan_gp'  # 'dcgan', 'lsgan', 'wgan_gp', 'one_wgan_gp'
+GAN: 'sn_pgan'  # 'dcgan', 'lsgan', 'wgan_gp', 'one_wgan_gp'
 PRETRAIN_COARSE_NETWORK: False
 GAN_LOSS_ALPHA: 0.001  # dcgan: 0.0008, wgan: 0.0005, onegan: 0.001
 WGAN_GP_LAMBDA: 10
@@ -13,6 +14,7 @@ COARSE_L1_ALPHA: 1.2
 L1_LOSS_ALPHA: 1.2
 AE_LOSS_ALPHA: 1.2
 GAN_WITH_MASK: False
+GAN_WITH_GUIDE: False
 DISCOUNTED_MASK: True
 RANDOM_SEED: False
 PADDING: 'SAME'
@@ -49,6 +51,10 @@ DATA_FLIST:
   imagenet: [
     'data/imagenet/train_shuffled.flist',
     'data/imagenet/validation_static_view.flist',
+  ]
+  irrmask: [
+    'data/mask',
+    'data/mask'
   ]
 
 STATIC_VIEW_SIZE: 30
