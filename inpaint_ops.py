@@ -209,6 +209,44 @@ def gated_deconv(x, cnum, name='upsample', padding='SAME', training=True):
     return x
 
 
+
+
+def random_ff_mask(config, name="ff_mask"):
+    """Generate a random free form mask with configuration.
+
+    Args:
+        config: Config should have configuration including IMG_SHAPES,
+            VERTICAL_MARGIN, HEIGHT, HORIZONTAL_MARGIN, WIDTH.
+
+    Returns:
+        tuple: (top, left, height, width)
+
+    """
+    img_shape = config.IMG_SHAPES
+    h,w,c = img_shape
+    def npmask():
+
+        mask = np.zeros((h,w))
+        num_v = tf.random_uniform([], minval=0, maxval=config.MAXVERTEX, dtype=tf.int32)
+        start_x = tf.random_uniform([], minval=0, maxval=w)
+        start_y =tf.random_uniform([], minval=0, maxval=h)
+        for i in range(num_v):
+            angle = tf.random_uniform([], minval=0, maxval=config.MAXANGLE)
+            if i % 2 == 0:
+                angle = 2 * 3.1415926 - angle
+            length = tf.random_uniform([], minval=0, maxval=config.MAXLENGTH)
+            brush_w = tf.random_uniform([], minval=0, maxval=config.MAXBRUSHWIDTH)
+            end_x = start_x + length * tf.sin(angle)
+            end_y = start_y + length * tf.cos(angle)
+
+            cv2.line(mask, (start_y, end_y), (start_x, end_x), 1, brush_w)
+    with tf.variable_scope(name), tf.device('/cpu:0'):
+        mask = tf.py_func(
+            npmask,
+            [],
+            tf.float32, stateful=False)
+        mask.set_shape([1] + [h, w] + [1])
+    return mask
 def random_bbox(config):
     """Generate a random tlhw with configuration.
 

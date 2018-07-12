@@ -13,8 +13,7 @@ from neuralgym.ops.gan_ops import gan_wgan_loss, gradients_penalty
 from neuralgym.ops.gan_ops import random_interpolates
 
 from inpaint_ops import gated_conv, gated_deconv, gen_conv, dis_conv, gen_snconv, gen_deconv
-from inpaint_ops import random_bbox, bbox2mask, local_patch
-from inpaint_ops import spatial_discounting_mask
+from inpaint_ops import random_ff_mask
 from inpaint_ops import resize_mask_like, contextual_attention
 
 
@@ -37,10 +36,12 @@ class InpaintGCModel(Model):
         """
         xin = x
         offset_flow = None
-        
-        x = tf.concat([x, mask], axis=3)
+        ones_x = tf.ones_like(x)[:, :, :, 0:1]
+        x = tf.concat([x, ones_x*mask], axis=3)
         if guide is not None:
-            x = tf.concat([x, guide], axis=3)
+            x = tf.concat([x, ones_x*guide], axis=3)
+        else:
+            x = tf.concat([x, ones_x], axis=3)
         # two stage network
         cnum = 32
         with tf.variable_scope(name, reuse=reuse), \
@@ -129,6 +130,8 @@ class InpaintGCModel(Model):
         batch_pos = batch_data / 127.5 - 1.
         # generate mask, 1 represents masked point
         batch_incomplete = batch_pos*(1.-batch_mask)
+        if batch_mask is None:
+            batch_mask = random_ff_mask(config)
         x1, x2, offset_flow = self.build_inpaint_net(
             batch_incomplete, batch_mask, batch_guide, config, reuse=reuse, training=training,
             padding=config.PADDING)

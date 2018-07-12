@@ -1,5 +1,5 @@
 # parameters
-DATASET: 'celebahq'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+DATASET: 'places2'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
 MASKDATASET: 'irrmask'
 RANDOM_CROP: False
 VAL: False
@@ -44,8 +44,8 @@ DATA_FLIST:
   ]
   # http://places2.csail.mit.edu/, please download the high-resolution dataset and use RANDOM_CROP: True
   places2: [
-    'data/places2/train_shuffled.flist',
-    'data/places2/validation_static_view.flist'
+    '../Data/PlacesData/train_list.txt',
+    '../Data/PlacesData/val_list.txt'
   ]
   # http://www.image-net.org/, please use RANDOM_CROP: True
   imagenet: [
@@ -53,8 +53,8 @@ DATA_FLIST:
     'data/imagenet/validation_static_view.flist',
   ]
   irrmask: [
-    'data/mask',
-    'data/mask'
+    '../Data/MaskData/irrmask_flist.txt',
+    '../Data/MaskData/irrmask_flist.txt'
   ]
 
 STATIC_VIEW_SIZE: 30
@@ -66,7 +66,10 @@ MAX_DELTA_WIDTH: 32
 BATCH_SIZE: 16
 VERTICAL_MARGIN: 0
 HORIZONTAL_MARGIN: 0
-
+MAXVERTEX: 5
+MAXANGLE: 2.0 #pi
+MAXLENGTH: 40
+MAXBRUSHWIDTH: 3 
 # loss
 AE_LOSS: True
 L1_LOSS: True

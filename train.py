@@ -49,6 +49,7 @@ if __name__ == "__main__":
         fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
     masks = mask_data.data_pipeline(config.BATCH_SIZE)
     guides = None
+    masks = None
     # main model
     model = InpaintGCModel()
     g_vars, d_vars, losses = model.build_graph_with_losses(
@@ -98,7 +99,7 @@ if __name__ == "__main__":
         max_iters=5,
         graph_def=multigpu_graph_def,
         graph_def_kwargs={
-            'model': model, 'data': data, 'mask_data':mask_data, 'config': config, 'loss_type': 'd'},
+            'model': model, 'data': data,  'config': config, 'loss_type': 'd'},
     )
     # train generator with primary trainer
     trainer = ng.train.Trainer(
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         grads_summary=config.GRADS_SUMMARY,
         gradient_processor=gradient_processor,
         graph_def_kwargs={
-            'model': model, 'data': data, 'mask_data':mask_data, 'config': config, 'loss_type': 'g'},
+            'model': model, 'data': data,  'config': config, 'loss_type': 'g'},
         spe=config.TRAIN_SPE,
         log_dir=log_prefix,
     )
