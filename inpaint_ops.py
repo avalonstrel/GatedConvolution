@@ -228,19 +228,22 @@ def random_ff_mask(config, name="ff_mask"):
     def npmask():
 
         mask = np.zeros((h,w))
-        num_v = np.random.randint(config.MAXVERTEX)#tf.random_uniform([], minval=0, maxval=config.MAXVERTEX, dtype=tf.int32)
-        start_x = np.random.randint(w)
-        start_y = np.random.randint(h)
-        for i in range(num_v):
-            angle = np.random.randint(config.MAXANGLE)
-            if i % 2 == 0:
-                angle = 2 * 3.1415926 - angle
-            length = np.random.randint(config.MAXLENGTH)
-            brush_w = np.random.randint(config.MAXBRUSHWIDTH)
-            end_x = (start_x + length * np.sin(angle)).astype(np.int32)
-            end_y = (start_y + length * np.cos(angle)).astype(np.int32)
+        num_v = 8+np.random.randint(config.MAXVERTEX)#tf.random_uniform([], minval=0, maxval=config.MAXVERTEX, dtype=tf.int32)
 
-            cv2.line(mask, (start_y, end_y), (start_x, end_x), 1, brush_w)
+        for i in range(num_v):
+            start_x = np.random.randint(w)
+            start_y = np.random.randint(h)
+            for j in range(1+np.random.randint(5)):
+                angle = 0.01+np.random.randint(config.MAXANGLE)
+                if i % 2 == 0:
+                    angle = 2 * 3.1415926 - angle
+                length = 10+np.random.randint(config.MAXLENGTH)
+                brush_w = 10+np.random.randint(config.MAXBRUSHWIDTH)
+                end_x = (start_x + length * np.sin(angle)).astype(np.int32)
+                end_y = (start_y + length * np.cos(angle)).astype(np.int32)
+
+                cv2.line(mask, (start_y, start_x), (end_y, end_x), 1.0, brush_w)
+                start_x, start_y = end_x, end_y
         return mask.reshape(mask.shape+(1,)).astype(np.float32)
     with tf.variable_scope(name), tf.device('/cpu:0'):
         mask = tf.py_func(
