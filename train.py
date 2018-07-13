@@ -5,22 +5,22 @@ import logging
 
 import tensorflow as tf
 import neuralgym as ng
-
+from data_from_fnames import DataFromFNames
 from inpaint_model import InpaintCAModel
 from inpaint_model_gc import InpaintGCModel
 
 logger = logging.getLogger()
 
 
-def multigpu_graph_def(model, data, config, gpu_id=0, loss_type='g'):
+def multigpu_graph_def(model, data, masks, guides, config, gpu_id=0, loss_type='g'):
     with tf.device('/cpu:0'):
         images = data.data_pipeline(config.BATCH_SIZE)
     if gpu_id == 0 and loss_type == 'g':
         _, _, losses = model.build_graph_with_losses(
-            images, config, summary=True, reuse=True)
+            images, masks, guides, config, summary=True, reuse=True)
     else:
         _, _, losses = model.build_graph_with_losses(
-            images, config, reuse=True)
+            images, masks, guides, config, reuse=True)
     if loss_type == 'g':
         return losses['g_loss']
     elif loss_type == 'd':
@@ -39,17 +39,19 @@ if __name__ == "__main__":
     # Image Data
     with open(config.DATA_FLIST[config.DATASET][0]) as f:
         fnames = f.read().splitlines()
-    data = ng.data.DataFromFNames(
+    data = DataFromFNames(
         fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
     images = data.data_pipeline(config.BATCH_SIZE)
+
     # Mask Data
-    with open(config.DATA_FLIST[config.MASKDATASET][0]) as f:
-        fnames = f.read().splitlines()
-    mask_data = ng.data.DataFromFNames(
-        fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
-    masks = mask_data.data_pipeline(config.BATCH_SIZE)
+    # with open(config.DATA_FLIST[config.MASKDATASET][0]) as f:
+    #     fnames = f.read().splitlines()
+    # mask_data = DataFromFNames(
+    #     fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
+    # masks = mask_data.data_pipeline(config.BATCH_SIZE)
     guides = None
     masks = None
+    mask_data = None
     # main model
     model = InpaintGCModel()
     g_vars, d_vars, losses = model.build_graph_with_losses(
@@ -63,11 +65,11 @@ if __name__ == "__main__":
         # progress monitor by visualizing static images
         for i in range(config.STATIC_VIEW_SIZE):
             static_fnames = val_fnames[i:i+1]
-            static_images = ng.data.DataFromFNames(
+            static_images = DataFromFNames(
                 static_fnames, config.IMG_SHAPES, nthreads=1,
                 random_crop=config.RANDOM_CROP).data_pipeline(1)
             static_mask_fnames = val_mask_fnames[i:i+1]
-            static_masks = ng.data.DataFromFNames(
+            static_masks = DataFromFNames(
                 static_mask_fnames, config.IMG_SHAPES, nthreads=1,
                 random_crop=config.RANDOM_CROP).data_pipeline(1)
             static_inpainted_images = model.build_static_infer_graph(
@@ -99,7 +101,7 @@ if __name__ == "__main__":
         max_iters=5,
         graph_def=multigpu_graph_def,
         graph_def_kwargs={
-            'model': model, 'data': data,  'config': config, 'loss_type': 'd'},
+            'model': model, 'data': data, "masks":data, "guides":data, 'config': config, 'loss_type': 'd'},
     )
     # train generator with primary trainer
     trainer = ng.train.Trainer(
@@ -110,7 +112,7 @@ if __name__ == "__main__":
         grads_summary=config.GRADS_SUMMARY,
         gradient_processor=gradient_processor,
         graph_def_kwargs={
-            'model': model, 'data': data,  'config': config, 'loss_type': 'g'},
+            'model': model, 'data': data, "masks":data, "guides":data, 'config': config, 'loss_type': 'g'},
         spe=config.TRAIN_SPE,
         log_dir=log_prefix,
     )

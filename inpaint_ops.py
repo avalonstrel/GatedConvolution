@@ -9,7 +9,7 @@ from neuralgym.ops.layers import resize
 from neuralgym.ops.layers import *
 from neuralgym.ops.loss_ops import *
 from neuralgym.ops.summary_ops import *
-from .sn import spectral_normed_weight
+from sn import spectral_normed_weight
 
 logger = logging.getLogger()
 np.random.seed(2018)
@@ -99,10 +99,10 @@ def gen_snconv(x, cnum, ksize, stride=1, rate=1, name='conv',
     fan_out = ksize * ksize * cnum
     stddev = np.sqrt(2. / (fan_in))
     # initializer for w used for spectral normalization
-    w = tf.get_variable("w", [ksize, ksize, x.get_shape()[-1], cnum],
+    w = tf.get_variable(name+"_w", [ksize, ksize, x.get_shape()[-1], cnum],
                         initializer=tf.truncated_normal_initializer(stddev=stddev))
-    x = tf.nn.conv2d(x, spectral_normed_weight(w, update_collection=tf.GraphKeys.UPDATE_OPS),
-                          strides=[1, stride, stride, 1], dilations=[1, rate, rate, 1] padding=padding)
+    x = tf.nn.conv2d(x, spectral_normed_weight(w, update_collection=tf.GraphKeys.UPDATE_OPS, name=name+"_sn_w"),
+                          strides=[1, stride, stride, 1], dilations=[1, rate, rate, 1], padding=padding, name=name)
     return x
 
 
@@ -175,13 +175,14 @@ def gated_conv(x, cnum, ksize, stride=1, rate=1, name='gated_conv',
         p = int(rate*(ksize-1)/2)
         x = tf.pad(x, [[0,0], [p, p], [p, p], [0,0]], mode=padding)
         padding = 'VALID'
+    xin = x
     x = tf.layers.conv2d(
-        x, cnum, ksize, stride, dilation_rate=rate,
+        xin, cnum, ksize, stride, dilation_rate=rate,
         activation=activation, padding=padding, name=name)
 
     gated_mask = tf.layers.conv2d(
-        x, cnum, ksize, stride, dilation_rate=rate,
-        activation=tf.nn.sigmoid, padding=padding, name=name)
+        xin, cnum, ksize, stride, dilation_rate=rate,
+        activation=tf.nn.sigmoid, padding=padding, name=name+"_mask")
 
     return x * gated_mask
 
@@ -227,26 +228,28 @@ def random_ff_mask(config, name="ff_mask"):
     def npmask():
 
         mask = np.zeros((h,w))
-        num_v = tf.random_uniform([], minval=0, maxval=config.MAXVERTEX, dtype=tf.int32)
-        start_x = tf.random_uniform([], minval=0, maxval=w)
-        start_y =tf.random_uniform([], minval=0, maxval=h)
+        num_v = np.random.randint(config.MAXVERTEX)#tf.random_uniform([], minval=0, maxval=config.MAXVERTEX, dtype=tf.int32)
+        start_x = np.random.randint(w)
+        start_y = np.random.randint(h)
         for i in range(num_v):
-            angle = tf.random_uniform([], minval=0, maxval=config.MAXANGLE)
+            angle = np.random.randint(config.MAXANGLE)
             if i % 2 == 0:
                 angle = 2 * 3.1415926 - angle
-            length = tf.random_uniform([], minval=0, maxval=config.MAXLENGTH)
-            brush_w = tf.random_uniform([], minval=0, maxval=config.MAXBRUSHWIDTH)
-            end_x = start_x + length * tf.sin(angle)
-            end_y = start_y + length * tf.cos(angle)
+            length = np.random.randint(config.MAXLENGTH)
+            brush_w = np.random.randint(config.MAXBRUSHWIDTH)
+            end_x = (start_x + length * np.sin(angle)).astype(np.int32)
+            end_y = (start_y + length * np.cos(angle)).astype(np.int32)
 
             cv2.line(mask, (start_y, end_y), (start_x, end_x), 1, brush_w)
+        return mask.reshape(mask.shape+(1,)).astype(np.float32)
     with tf.variable_scope(name), tf.device('/cpu:0'):
         mask = tf.py_func(
             npmask,
             [],
             tf.float32, stateful=False)
-        mask.set_shape([1] + [h, w] + [1])
+        mask.set_shape([1,] + [h, w] + [1,])
     return mask
+
 def random_bbox(config):
     """Generate a random tlhw with configuration.
 
@@ -304,7 +307,7 @@ def bbox2mask(bbox, config, name='mask'):
     return mask
 
 
-def mask_path(x, mask):
+def mask_patch(x, mask):
     """Crop local patch according to mask.
 
     Args:

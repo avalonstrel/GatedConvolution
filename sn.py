@@ -9,12 +9,12 @@ def _l2normalize(v, eps=1e-12):
   return v / (tf.reduce_sum(v ** 2) ** 0.5 + eps)
 
 
-def spectral_normed_weight(W, u=None, num_iters=1, update_collection=None, with_sigma=False):
+def spectral_normed_weight(W, u=None, num_iters=1, update_collection=None, with_sigma=False, name="sn_w"):
   # Usually num_iters = 1 will be enough
   W_shape = W.shape.as_list()
   W_reshaped = tf.reshape(W, [-1, W_shape[-1]])
   if u is None:
-    u = tf.get_variable("u", [1, W_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
+    u = tf.get_variable(name+"_u", [1, W_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
   def power_iteration(i, u_i, v_i):
     v_ip1 = _l2normalize(tf.matmul(u_i, tf.transpose(W_reshaped)))
     u_ip1 = _l2normalize(tf.matmul(v_ip1, W_reshaped))

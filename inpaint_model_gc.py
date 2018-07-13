@@ -13,7 +13,7 @@ from neuralgym.ops.gan_ops import gan_wgan_loss, gradients_penalty
 from neuralgym.ops.gan_ops import random_interpolates
 
 from inpaint_ops import gated_conv, gated_deconv, gen_conv, dis_conv, gen_snconv, gen_deconv
-from inpaint_ops import random_ff_mask
+from inpaint_ops import random_ff_mask, mask_patch
 from inpaint_ops import resize_mask_like, contextual_attention
 
 
@@ -37,15 +37,12 @@ class InpaintGCModel(Model):
         xin = x
         offset_flow = None
         ones_x = tf.ones_like(x)[:, :, :, 0:1]
-        x = tf.concat([x, ones_x*mask], axis=3)
-        if guide is not None:
-            x = tf.concat([x, ones_x*guide], axis=3)
-        else:
-            x = tf.concat([x, ones_x], axis=3)
+        x = tf.concat([x, ones_x*mask, ones_x*guide], axis=3)
+        #x = tf.concat([x, ones_x*guide], axis=3)
         # two stage network
         cnum = 32
         with tf.variable_scope(name, reuse=reuse), \
-                arg_scope([gen_conv, gen_deconv],
+                arg_scope([gated_conv, gated_deconv],
                           training=training, padding=padding):
             # stage1
             x = gated_conv(x, cnum, 5, 1, name='conv1')
@@ -95,6 +92,8 @@ class InpaintGCModel(Model):
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv5')
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv6',
                          activation=tf.nn.relu)
+            #self.test_m_shape = tf.shape(mask_s)
+            #self.test_x_shape = tf.shape([x)
             x, offset_flow = contextual_attention(x, x, mask_s, 3, 1, rate=2)
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv9')
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv10')
@@ -116,11 +115,11 @@ class InpaintGCModel(Model):
         with tf.variable_scope('discriminator', reuse=reuse):
             cnum = 64
             x = gen_snconv(x, cnum, 5, 2, name='conv1', training=training)
-            x = gen_snconv(x, cnum*2, 5, 2, name='conv1', training=training)
-            x = gen_snconv(x, cnum*4, 5, 2, name='conv1', training=training)
-            x = gen_snconv(x, cnum*4, 5, 2, name='conv1', training=training)
-            x = gen_snconv(x, cnum*4, 5, 2, name='conv1', training=training)
-            x = gen_snconv(x, cnum*4, 5, 2, name='conv1', training=training)
+            x = gen_snconv(x, cnum*2, 5, 2, name='conv2', training=training)
+            x = gen_snconv(x, cnum*4, 5, 2, name='conv3', training=training)
+            x = gen_snconv(x, cnum*4, 5, 2, name='conv4', training=training)
+            x = gen_snconv(x, cnum*4, 5, 2, name='conv5', training=training)
+            x = gen_snconv(x, cnum*4, 5, 2, name='conv6', training=training)
             return x
 
 
@@ -128,13 +127,16 @@ class InpaintGCModel(Model):
     def build_graph_with_losses(self, batch_data, batch_mask, batch_guide, config, training=True,
                                 summary=False, reuse=False):
         batch_pos = batch_data / 127.5 - 1.
-        # generate mask, 1 represents masked point
+        # generate mask, 1 represents masked point[]
+
+        #if batch_mask is None:
+        batch_mask = random_ff_mask(config)
         batch_incomplete = batch_pos*(1.-batch_mask)
-        if batch_mask is None:
-            batch_mask = random_ff_mask(config)
+        ones_x = tf.ones_like(batch_mask)[:, :, :, 0:1]
+        batch_mask = ones_x*batch_mask
+        batch_guide = ones_x
         x1, x2, offset_flow = self.build_inpaint_net(
-            batch_incomplete, batch_mask, batch_guide, config, reuse=reuse, training=training,
-            padding=config.PADDING)
+            batch_incomplete, batch_mask, batch_mask, config, reuse=reuse, training=training, padding=config.PADDING)
         if config.PRETRAIN_COARSE_NETWORK:
             batch_predicted = x1
             logger.info('Set batch_predicted to x1.')
@@ -182,6 +184,7 @@ class InpaintGCModel(Model):
             batch_pos_neg = tf.concat([batch_pos_neg, tf.tile(batch_mask, [config.BATCH_SIZE*2, 1, 1, 1])], axis=3)
         if config.GAN_WITH_GUIDE:
             batch_pos_neg = tf.concat([batch_pos_neg, tf.tile(batch_guide, [config.BATCH_SIZE*2, 1, 1, 1])], axis=3)
+        #batch_pos_, batch_complete_ = tf.split(axis, value, num_split, name=None)
         # sn-pgan with gradient penalty
         if config.GAN == 'sn_pgan':
             # sn path gan
@@ -196,7 +199,10 @@ class InpaintGCModel(Model):
             # gp
 
             # Random Interpolate between true and false
-            interpolates_global = random_interpolates(batch_pos, batch_complete)
+
+            interpolates_global = random_interpolates(
+                                    tf.concat([batch_pos, tf.tile(batch_mask, [config.BATCH_SIZE, 1, 1, 1])], axis=3),
+                                    tf.concat([batch_complete, tf.tile(batch_mask, [config.BATCH_SIZE, 1, 1, 1])], axis=3))
             dout_global = self.build_sn_pgan_discriminator(interpolates_global, reuse=True)
 
             # apply penalty
