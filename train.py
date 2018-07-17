@@ -13,14 +13,19 @@ logger = logging.getLogger()
 
 
 def multigpu_graph_def(model, data, masks, guides, config, gpu_id=0, loss_type='g'):
+
+    files = None
     with tf.device('/cpu:0'):
-        images = data.data_pipeline(config.BATCH_SIZE)
+        if config.MASKFROMFILE:
+            images, files = data.data_pipeline(config.BATCH_SIZE)
+        else:
+            images = data.data_pipeline(config.BATCH_SIZE)
     if gpu_id == 0 and loss_type == 'g':
         _, _, losses = model.build_graph_with_losses(
-            images, masks, guides, config, summary=True, reuse=True)
+            images, masks, guides, config, summary=True, reuse=True, batch_files=files, mask_from_file=config.MASKFROMFILE)
     else:
         _, _, losses = model.build_graph_with_losses(
-            images, masks, guides, config, reuse=True)
+            images, masks, guides, config, reuse=True, batch_files=files, mask_from_file=config.MASKFROMFILE)
     if loss_type == 'g':
         return losses['g_loss']
     elif loss_type == 'd':
@@ -43,7 +48,7 @@ if __name__ == "__main__":
         fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
     images = data.data_pipeline(config.BATCH_SIZE)
 
-    # Mask Data
+    # # Mask Data
     # with open(config.DATA_FLIST[config.MASKDATASET][0]) as f:
     #     fnames = f.read().splitlines()
     # mask_data = DataFromFNames(

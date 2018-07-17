@@ -253,6 +253,41 @@ def random_ff_mask(config, name="ff_mask"):
         mask.set_shape([1,] + [h, w] + [1,])
     return mask
 
+def mask_from_bbox_voc(config, bboxes):
+    """
+    Use the data from voc dataset. And generate mask from bounding segmentation data
+
+    Args:
+        config: Config should have configuration including IMG_SHAPES,
+            VERTICAL_MARGIN, HEIGHT, HORIZONTAL_MARGIN, WIDTH.
+
+        files: Filename list used for generate bboxes
+    Returns:
+        a batch of masks
+    """
+    img_shape = config.IMG_SHAPES
+    img_height = img_shape[0]
+    img_width = img_shape[1]
+    with tf.variable_scope(name), tf.device('/cpu:0'):
+        for i in range(files.shapes[0]):
+            pass
+
+
+
+
+def mask_from_seg_voc(config, files):
+    """
+    Use the data from voc dataset. And generate mask from bounding box data
+
+    Args:
+        config: Config should have configuration including IMG_SHAPES,
+            VERTICAL_MARGIN, HEIGHT, HORIZONTAL_MARGIN, WIDTH.
+
+        files: Filename list used for generate bboxes
+    Returns:
+        a batch of masks
+    """
+    pass
 def random_bbox(config):
     """Generate a random tlhw with configuration.
 
@@ -673,6 +708,36 @@ def image2edge(image):
         img = cv2.Laplacian(image[i, :, :, :], cv2.CV_64F, ksize=3, scale=2)
         out.append(img)
     return np.float32(np.uint8(out))
+
+class VOCReader(object):
+    def __init__(self, path):
+        self.path = path
+
+    def load_seg(self, filename):
+        file_path = os.path.join(self.path, "SegmentationClass", filename)
+        seg = cv2.imread(file_path)
+        return seg
+    def seg2mask(self, seg):
+        pass
+    def load_bndbox(self, filename):
+        file_path = os.path.join(self.path, "Annotations", filename)
+        with open(filename, 'r') as reader:
+            xml = reader.read()
+        soup = BeautifulSoup(xml, 'xml')
+        size = {}
+        for tag in soup.size:
+            if tag.string != "\n":
+                size[tag.name] = int(tag.string)
+        objects = soup.find_all('object')
+        bndboxs = []
+        for obj in objects:
+            bndbox = {}
+            for tag in obj.bndbox:
+                if tag.string != '\n':
+                    bndbox[tag.name] = int(tag.string)
+            bndboxs.append(bndbox)
+        return bndboxs
+
 
 
 if __name__ == "__main__":

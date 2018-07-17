@@ -15,8 +15,8 @@ logger = logging.getLogger()
 READER_LOCK = threading.Lock()
 
 
-class DataFromFNames(Dataset):
-    """Data pipeline from list of filenames.
+class MaskFromFNames(Dataset):
+    """Data pipeline from list of filenames. Read th filenames and return masks from bbox or segmentation
     Args:
         fnamelists (list): A list of filenames or tuple of filenames, e.g.
             ['image_001.png', ...] or
@@ -57,7 +57,7 @@ class DataFromFNames(Dataset):
     def __init__(self, fnamelists, shapes, random=False, random_crop=False,
                  fn_preprocess=None, dtypes=tf.float32,
                  enqueue_size=32, queue_size=256, nthreads=16,
-                 return_fnames=False, filetype='image'):
+                 return_fnames=False, from_bbox=True, filetype='image'):
         self.fnamelists_ = self.process_fnamelists(fnamelists)
         self.file_length = len(self.fnamelists_)
         self.random = random
@@ -148,6 +148,47 @@ class DataFromFNames(Dataset):
             img = self.fn_preprocess(img)
         return img, False
 
+    def read_bbox(self, filename):
+        file_path = os.path.join(self.path, "Annotations", filename)
+        with open(filename, 'r') as reader:
+            xml = reader.read()
+        soup = BeautifulSoup(xml, 'xml')
+        size = {}
+        for tag in soup.size:
+            if tag.string != "\n":
+                size[tag.name] = int(tag.string)
+        objects = soup.find_all('object')
+        bndboxs = []
+        for obj in objects:
+            bndbox = {}
+            for tag in obj.bndbox:
+                if tag.string != '\n':
+                    bndbox[tag.name] = int(tag.string)
+
+            bbox = [bndbox['ymin'], bndbox['xmin'], bndbox['ymax']-bndbox['ymin'], bndbox['xmax']-bndbox['xmin']]
+            bndboxs.append(bbox)
+        return bndboxs
+
+
+    def bbox2mask(self, bbox, height, weight, delta_h, delta_w, name='mask'):
+        """Generate mask tensor from bbox.
+
+        Args:
+            bbox: configuration tuple, (top, left, height, width)
+            config: Config should have configuration including IMG_SHAPES,
+                MAX_DELTA_HEIGHT, MAX_DELTA_WIDTH.
+
+        Returns:
+            tf.Tensor: output with shape [1, H, W, 1]
+
+        """
+
+        mask = np.zeros((1, height, width, 1), np.float32)
+        h = np.random.randint(delta_h//2+1)
+        w = np.random.randint(delta_w//2+1)
+        mask[:, bbox[0]+h:bbox[0]+bbox[2]-h,
+             bbox[1]+w:bbox[1]+bbox[3]-w, :] = 1.
+        return mask
 
     def next_batch(self):
         batch_data = []
@@ -165,8 +206,10 @@ class DataFromFNames(Dataset):
                 random_h = None
                 random_w = None
                 for i in range(len(filenames)):
-                    img, error = self.read_img(filenames[i])
-
+                    #img, error = self.read_img(filenames[i])
+                    bboxs = self.read_bbox(filenames[i])
+                    img = self.bbox2mask(bboxs[0])
+                    
                     if self.random_crop:
                         img, random_h_, random_w_ = np_random_crop(
                             img, tuple(self.shapes[i][:-1]),
@@ -174,7 +217,6 @@ class DataFromFNames(Dataset):
                     else:
                         if img is None:
                             continue
-                        #print(np.array(img).shape,tuple(self.shapes[i][:-1]))
                         img = cv2.resize(img, tuple(self.shapes[i][:-1]))
                     imgs.append(img)
 

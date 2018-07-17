@@ -13,7 +13,7 @@ from neuralgym.ops.gan_ops import gan_wgan_loss, gradients_penalty
 from neuralgym.ops.gan_ops import random_interpolates
 
 from inpaint_ops import gated_conv, gated_deconv, gen_conv, dis_conv, gen_snconv, gen_deconv
-from inpaint_ops import random_ff_mask, mask_patch
+from inpaint_ops import random_ff_mask, mask_patch, mask_from_bbox_voc, mask_from_seg_voc
 from inpaint_ops import resize_mask_like, contextual_attention
 
 
@@ -125,12 +125,15 @@ class InpaintGCModel(Model):
 
 
     def build_graph_with_losses(self, batch_data, batch_mask, batch_guide, config, training=True,
-                                summary=False, reuse=False):
+                                summary=False, reuse=False, batch_files=None, mask_from_file=False):
         batch_pos = batch_data / 127.5 - 1.
         # generate mask, 1 represents masked point[]
 
         #if batch_mask is None:
-        batch_mask = random_ff_mask(config)
+        if mask_from_file and batch_files is not None:
+            batch_mask = mask_from_bbox_voc(batch_files)
+        elif batch_mask is None:
+            batch_mask = random_ff_mask(config)
         batch_incomplete = batch_pos*(1.-batch_mask)
         ones_x = tf.ones_like(batch_mask)[:, :, :, 0:1]
         batch_mask = ones_x*batch_mask
