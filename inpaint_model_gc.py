@@ -125,13 +125,10 @@ class InpaintGCModel(Model):
 
 
     def build_graph_with_losses(self, batch_data, batch_mask, batch_guide, config, training=True,
-                                summary=False, reuse=False, batch_files=None, mask_from_file=False):
+                                summary=False, reuse=False):
         batch_pos = batch_data / 127.5 - 1.
         # generate mask, 1 represents masked point[]
 
-        #if batch_mask is None:
-        if mask_from_file and batch_files is not None:
-            batch_mask = mask_from_bbox_voc(batch_files)
         elif batch_mask is None:
             batch_mask = random_ff_mask(config)
         batch_incomplete = batch_pos*(1.-batch_mask)

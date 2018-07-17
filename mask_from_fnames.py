@@ -148,8 +148,8 @@ class MaskFromFNames(Dataset):
             img = self.fn_preprocess(img)
         return img, False
 
-    def read_bbox(self, filename):
-        file_path = os.path.join(self.path, "Annotations", filename)
+    def read_bbox_shapes(self, filename):
+        #file_path = os.path.join(self.path, "Annotations", filename)
         with open(filename, 'r') as reader:
             xml = reader.read()
         soup = BeautifulSoup(xml, 'xml')
@@ -167,7 +167,8 @@ class MaskFromFNames(Dataset):
 
             bbox = [bndbox['ymin'], bndbox['xmin'], bndbox['ymax']-bndbox['ymin'], bndbox['xmax']-bndbox['xmin']]
             bndboxs.append(bbox)
-        return bndboxs
+        print(bndboxs, size)
+        return bndboxs, (size['height'], size['width'])
 
 
     def bbox2mask(self, bbox, height, weight, delta_h, delta_w, name='mask'):
@@ -183,10 +184,10 @@ class MaskFromFNames(Dataset):
 
         """
 
-        mask = np.zeros((1, height, width, 1), np.float32)
+        mask = np.zeros(( height, width, 1), np.float32)
         h = np.random.randint(delta_h//2+1)
         w = np.random.randint(delta_w//2+1)
-        mask[:, bbox[0]+h:bbox[0]+bbox[2]-h,
+        mask[bbox[0]+h:bbox[0]+bbox[2]-h,
              bbox[1]+w:bbox[1]+bbox[3]-w, :] = 1.
         return mask
 
@@ -207,9 +208,9 @@ class MaskFromFNames(Dataset):
                 random_w = None
                 for i in range(len(filenames)):
                     #img, error = self.read_img(filenames[i])
-                    bboxs = self.read_bbox(filenames[i])
-                    img = self.bbox2mask(bboxs[0])
-                    
+                    bboxs, shape = self.read_bbox(filenames[i])
+                    img = self.bbox2mask(bboxs[0], shape[0], shape[1], 32, 32 )
+
                     if self.random_crop:
                         img, random_h_, random_w_ = np_random_crop(
                             img, tuple(self.shapes[i][:-1]),

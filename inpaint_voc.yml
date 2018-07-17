@@ -1,10 +1,10 @@
 # parameters
-DATASET: 'places2'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
-MASKDATASET: 'irrmask'
+DATASET: 'horse'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+MASKDATASET: 'horse_mask'
 RANDOM_CROP: False
-MASKFROMFILE: False
+MASKFROMFILE: True
 VAL: False
-LOG_DIR: full_model_places2_256
+LOG_DIR: full_model_voc_horse_256
 MODEL_RESTORE: ''  # '20180115220926508503_jyugpu0_places2_NORMAL_wgan_gp_full_model'
 
 GAN: 'sn_pgan'  # 'dcgan', 'lsgan', 'wgan_gp', 'one_wgan_gp'
@@ -68,6 +68,7 @@ DATA_FLIST:
 
 STATIC_VIEW_SIZE: 30
 IMG_SHAPES: [256, 256, 3]
+MASK_SHAPES: [256, 256, 1]
 HEIGHT: 128
 WIDTH: 128
 MAX_DELTA_HEIGHT: 32

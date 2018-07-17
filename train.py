@@ -2,12 +2,15 @@ import os
 import glob
 import socket
 import logging
+import sys
 
 import tensorflow as tf
 import neuralgym as ng
 from data_from_fnames import DataFromFNames
+from mask_from_fnames import MaskFromFNames
 from inpaint_model import InpaintCAModel
 from inpaint_model_gc import InpaintGCModel
+
 
 logger = logging.getLogger()
 
@@ -35,7 +38,7 @@ def multigpu_graph_def(model, data, masks, guides, config, gpu_id=0, loss_type='
 
 
 if __name__ == "__main__":
-    config = ng.Config('inpaint.yml')
+    config = ng.Config(sys.argv[1])
     if config.GPU_ID != -1:
         ng.set_gpus(config.GPU_ID)
     else:
@@ -48,15 +51,19 @@ if __name__ == "__main__":
         fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
     images = data.data_pipeline(config.BATCH_SIZE)
 
-    # # Mask Data
-    # with open(config.DATA_FLIST[config.MASKDATASET][0]) as f:
-    #     fnames = f.read().splitlines()
-    # mask_data = DataFromFNames(
-    #     fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
-    # masks = mask_data.data_pipeline(config.BATCH_SIZE)
+    # Mask Data
+    with open(config.DATA_FLIST[config.MASKDATASET][0]) as f:
+        fnames = f.read().splitlines()
+    mask_data = MaskFromFNames(
+        fnames, config.MASK_SHAPES, random_crop=config.RANDOM_CROP)
+    masks = mask_data.data_pipeline(config.BATCH_SIZE)
+
+
+    if not config.MASKFROMFILE:
+        masks = None
+        mask_data = None
+
     guides = None
-    masks = None
-    mask_data = None
     # main model
     model = InpaintGCModel()
     g_vars, d_vars, losses = model.build_graph_with_losses(
@@ -74,8 +81,8 @@ if __name__ == "__main__":
                 static_fnames, config.IMG_SHAPES, nthreads=1,
                 random_crop=config.RANDOM_CROP).data_pipeline(1)
             static_mask_fnames = val_mask_fnames[i:i+1]
-            static_masks = DataFromFNames(
-                static_mask_fnames, config.IMG_SHAPES, nthreads=1,
+            static_masks = MaskFromFNames(
+                static_mask_fnames, config.MASK_SHAPES, nthreads=1,
                 random_crop=config.RANDOM_CROP).data_pipeline(1)
             static_inpainted_images = model.build_static_infer_graph(
                 static_images, static_masks, None,  config, name='static_view/%d' % i)
