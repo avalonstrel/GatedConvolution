@@ -56,7 +56,7 @@ class DataFromFNames(Dataset):
 
     def __init__(self, fnamelists, shapes, random=False, random_crop=False,
                  fn_preprocess=None, dtypes=tf.float32,
-                 enqueue_size=32, queue_size=256, nthreads=16,
+                 enqueue_size=32, queue_size=256, nthreads=8,
                  return_fnames=False, filetype='image'):
         self.fnamelists_ = self.process_fnamelists(fnamelists)
         self.file_length = len(self.fnamelists_)

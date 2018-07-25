@@ -1,0 +1,98 @@
+# parameters
+DATASET: 'person'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+MASKDATASET: 'person_mask'
+RANDOM_CROP: False
+MASKFROMFILE: True
+VAL: False
+LOG_DIR: full_model_voc_person_256
+MODEL_RESTORE: ''  # '20180115220926508503_jyugpu0_places2_NORMAL_wgan_gp_full_model'
+
+GAN: 'sn_pgan'  # 'dcgan', 'lsgan', 'wgan_gp', 'one_wgan_gp'
+PRETRAIN_COARSE_NETWORK: False
+GAN_LOSS_ALPHA: 0.001  # dcgan: 0.0008, wgan: 0.0005, onegan: 0.001
+WGAN_GP_LAMBDA: 10
+COARSE_L1_ALPHA: 1.2
+L1_LOSS_ALPHA: 1.2
+AE_LOSS_ALPHA: 1.2
+GAN_WITH_MASK: True
+GAN_WITH_GUIDE: False
+DISCOUNTED_MASK: True
+RANDOM_SEED: False
+PADDING: 'SAME'
+
+# training
+NUM_GPUS: 1
+GPU_ID: -1  # -1 indicate select any available one, otherwise select gpu ID, e.g. [0,1,3]
+TRAIN_SPE: 10000
+MAX_ITERS: 1000000
+VIZ_MAX_OUT: 10
+GRADS_SUMMARY: False
+GRADIENT_CLIP: False
+GRADIENT_CLIP_VALUE: 0.1
+VAL_PSTEPS: 1000
+
+# data
+DATA_FLIST:
+  # https://github.com/JiahuiYu/progressive_growing_of_gans_tf
+  celebahq: [
+    'data/celeba_hq/train_shuffled.flist',
+    'data/celeba_hq/validation_static_view.flist'
+  ]
+  # http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html, please to use RANDOM_CROP: True
+  celeba: [
+    'data/celeba/train_shuffled.flist',
+    'data/celeba/validation_static_view.flist'
+  ]
+  # http://places2.csail.mit.edu/, please download the high-resolution dataset and use RANDOM_CROP: True
+  places2: [
+    '../Data/PlacesData/train_list.txt',
+    '../Data/PlacesData/val_list.txt'
+  ]
+  # http://www.image-net.org/, please use RANDOM_CROP: True
+  imagenet: [
+    'data/imagenet/train_shuffled.flist',
+    'data/imagenet/validation_static_view.flist',
+  ]
+  irrmask: [
+    '../Data/MaskData/irrmask_flist.txt',
+    '../Data/MaskData/irrmask_flist.txt'
+  ]
+  person: [
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_person_train_flist.txt',
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_person_val_flist.txt'
+  ]
+  person_mask: [
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_person_train_bbox_flist.txt',
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_person_val_bbox_flist.txt'
+  ]
+
+STATIC_VIEW_SIZE: 30
+IMG_SHAPES: [256, 256, 3]
+MASK_SHAPES: [256, 256, 1]
+HEIGHT: 128
+WIDTH: 128
+MAX_DELTA_HEIGHT: 32
+MAX_DELTA_WIDTH: 32
+BATCH_SIZE: 16
+VERTICAL_MARGIN: 0
+HORIZONTAL_MARGIN: 0
+MAXVERTEX: 5
+MAXANGLE: 4.0 #pi
+MAXLENGTH: 40
+MAXBRUSHWIDTH: 10
+# loss
+AE_LOSS: True
+L1_LOSS: True
+GLOBAL_DCGAN_LOSS_ALPHA: 1.
+GLOBAL_WGAN_LOSS_ALPHA: 1.
+
+# loss legacy
+LOAD_VGG_MODEL: False
+VGG_MODEL_FILE: data/model_zoo/vgg16.npz
+FEATURE_LOSS: False
+GRAMS_LOSS: False
+TV_LOSS: False
+TV_LOSS_ALPHA: 0.
+FEATURE_LOSS_ALPHA: 0.01
+GRAMS_LOSS_ALPHA: 50
+SPATIAL_DISCOUNTING_GAMMA: 0.9

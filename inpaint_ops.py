@@ -253,7 +253,7 @@ def random_ff_mask(config, name="ff_mask"):
         mask.set_shape([1,] + [h, w] + [1,])
     return mask
 
-def mask_from_bbox_voc(config, bboxes):
+def mask_from_bbox_voc(config, files):
     """
     Use the data from voc dataset. And generate mask from bounding segmentation data
 
@@ -268,11 +268,11 @@ def mask_from_bbox_voc(config, bboxes):
     img_shape = config.IMG_SHAPES
     img_height = img_shape[0]
     img_width = img_shape[1]
+    fs = tf.shape(files)
+    files_group = tf.split(files, fs[0], axis=0)
     with tf.variable_scope(name), tf.device('/cpu:0'):
-        for i in range(files.shapes[0]):
-            pass
-
-
+        for i in range(fs[0]):
+            file = files_group[i]
 
 
 def mask_from_seg_voc(config, files):
@@ -443,6 +443,7 @@ def contextual_attention(f, b, mask=None, ksize=3, stride=1, rate=1,
     """
     # get shapes
     raw_fs = tf.shape(f)
+    #batch_size = raw_fs[0]
     raw_int_fs = f.get_shape().as_list()
     raw_int_bs = b.get_shape().as_list()
     # extract patches from background with stride and rate
@@ -470,9 +471,11 @@ def contextual_attention(f, b, mask=None, ksize=3, stride=1, rate=1,
     # process mask
     if mask is None:
         mask = tf.zeros([1, bs[1], bs[2], 1])
+    ms = tf.shape(mask)
+    batch_size = ms[0]
     m = tf.extract_image_patches(
-        mask, [1,ksize,ksize,1], [1,stride,stride,1], [1,1,1,1], padding='SAME')
-    m = tf.reshape(m, [1, -1, ksize, ksize, 1])
+        mask, [1, ksize,ksize,1], [1,stride,stride,1], [1,1,1,1], padding='SAME')
+    m = tf.reshape(m, [batch_size, -1, ksize, ksize, 1])
     m = tf.transpose(m, [0, 2, 3, 4, 1])  # transpose to b*k*k*c*hw
     m = m[0]
     mm = tf.cast(tf.equal(tf.reduce_mean(m, axis=[0,1,2], keep_dims=True), 0.), tf.float32)

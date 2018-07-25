@@ -19,6 +19,20 @@ from inpaint_ops import resize_mask_like, contextual_attention
 
 logger = logging.getLogger()
 
+def gan_sn_pgan_loss(pos, neg, name='gan_sn_pgan_loss'):
+    """
+    sn_pgan loss function for GANs.
+
+    - Wasserstein GAN: https://arxiv.org/abs/1701.07875
+    """
+    with tf.variable_scope(name):
+        d_loss = tf.reduce_mean(tf.nn.relu(1-pos)) + tf.reduce_mean(tf.nn.relu(1+neg))
+        g_loss = -tf.reduce_mean(neg)
+        scalar_summary('d_loss', d_loss)
+        scalar_summary('g_loss', g_loss)
+        scalar_summary('pos_value_avg', tf.reduce_mean(pos))
+        scalar_summary('neg_value_avg', tf.reduce_mean(neg))
+    return g_loss, d_loss
 
 class InpaintGCModel(Model):
     def __init__(self):
@@ -37,7 +51,9 @@ class InpaintGCModel(Model):
         xin = x
         offset_flow = None
         ones_x = tf.ones_like(x)[:, :, :, 0:1]
-        x = tf.concat([x, ones_x*mask, ones_x*guide], axis=3)
+        #
+        #mask = ones_x*mask
+        x = tf.concat([x, ones_x*mask, ones_x], axis=3)
         #x = tf.concat([x, ones_x*guide], axis=3)
         # two stage network
         cnum = 32
@@ -52,6 +68,7 @@ class InpaintGCModel(Model):
             x = gated_conv(x, 4*cnum, 3, 1, name='conv5')
             x = gated_conv(x, 4*cnum, 3, 1, name='conv6')
             mask_s = resize_mask_like(mask, x)
+            #print(mask_s.shape)
             x = gated_conv(x, 4*cnum, 3, rate=2, name='conv7_atrous')
             x = gated_conv(x, 4*cnum, 3, rate=4, name='conv8_atrous')
             x = gated_conv(x, 4*cnum, 3, rate=8, name='conv9_atrous')
@@ -92,8 +109,8 @@ class InpaintGCModel(Model):
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv5')
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv6',
                          activation=tf.nn.relu)
-            #self.test_m_shape = tf.shape(mask_s)
-            #self.test_x_shape = tf.shape([x)
+            # self.test_m_shape = tf.shape(mask_s)
+            # self.test_x_shape = tf.shape([x)
             x, offset_flow = contextual_attention(x, x, mask_s, 3, 1, rate=2)
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv9')
             x = gated_conv(x, 4*cnum, 3, 1, name='pmconv10')
@@ -128,9 +145,14 @@ class InpaintGCModel(Model):
                                 summary=False, reuse=False):
         batch_pos = batch_data / 127.5 - 1.
         # generate mask, 1 represents masked point[]
-
-        elif batch_mask is None:
+        #print(batch_data, batch_mask)
+        if batch_mask is None:
             batch_mask = random_ff_mask(config)
+        else:
+            pass
+            #batch_mask = tf.reshape(batch_mask[0], [1, *batch_mask.get_shape().as_list()[1:]])
+        #print(batch_mask.shape)
+        #rint()
         batch_incomplete = batch_pos*(1.-batch_mask)
         ones_x = tf.ones_like(batch_mask)[:, :, :, 0:1]
         batch_mask = ones_x*batch_mask
@@ -179,9 +201,15 @@ class InpaintGCModel(Model):
 
         # gan
         batch_pos_neg = tf.concat([batch_pos, batch_complete], axis=0)
+        if config.MASKFROMFILE:
+            batch_mask_all = tf.tile(batch_mask, [2, 1, 1, 1])
+            #batch_mask = tf.tile(batch_mask, [config.BATCH_SIZE, 1, 1, 1])
+        else:
+            batch_mask_all = tf.tile(batch_mask, [config.BATCH_SIZE*2, 1, 1, 1])
+            batch_mask = tf.tile(batch_mask, [config.BATCH_SIZE, 1, 1, 1])
+        if config.GAN_WITH_MASK :
+            batch_pos_neg = tf.concat([batch_pos_neg, batch_mask_all], axis=3)
 
-        if config.GAN_WITH_MASK:
-            batch_pos_neg = tf.concat([batch_pos_neg, tf.tile(batch_mask, [config.BATCH_SIZE*2, 1, 1, 1])], axis=3)
         if config.GAN_WITH_GUIDE:
             batch_pos_neg = tf.concat([batch_pos_neg, tf.tile(batch_guide, [config.BATCH_SIZE*2, 1, 1, 1])], axis=3)
         #batch_pos_, batch_complete_ = tf.split(axis, value, num_split, name=None)
@@ -193,7 +221,7 @@ class InpaintGCModel(Model):
 
             # wgan loss
             #g_loss_local, d_loss_local = gan_wgan_loss(pos_local, neg_local, name='gan/local_gan')
-            g_loss_global, d_loss_global = gan_wgan_loss(pos_global, neg_global, name='gan/global_gan')
+            g_loss_global, d_loss_global = gan_sn_pgan_loss(pos_global, neg_global, name='gan/global_gan')
             losses['g_loss'] = config.GLOBAL_WGAN_LOSS_ALPHA * g_loss_global
             losses['d_loss'] = d_loss_global
             # gp
@@ -201,8 +229,8 @@ class InpaintGCModel(Model):
             # Random Interpolate between true and false
 
             interpolates_global = random_interpolates(
-                                    tf.concat([batch_pos, tf.tile(batch_mask, [config.BATCH_SIZE, 1, 1, 1])], axis=3),
-                                    tf.concat([batch_complete, tf.tile(batch_mask, [config.BATCH_SIZE, 1, 1, 1])], axis=3))
+                                    tf.concat([batch_pos, batch_mask], axis=3),
+                                    tf.concat([batch_complete, batch_mask], axis=3))
             dout_global = self.build_sn_pgan_discriminator(interpolates_global, reuse=True)
 
             # apply penalty
@@ -214,8 +242,8 @@ class InpaintGCModel(Model):
                 gradients_summary(g_loss_global, batch_predicted, name='g_loss_global')
                 scalar_summary('convergence/d_loss', losses['d_loss'])
                 scalar_summary('convergence/global_d_loss', d_loss_global)
-                scalar_summary('gan_wgan_loss/gp_loss', losses['gp_loss'])
-                scalar_summary('gan_wgan_loss/gp_penalty_global', penalty_global)
+                scalar_summary('gan_sn_pgan_loss/gp_loss', losses['gp_loss'])
+                scalar_summary('gan_sn_pgan_loss/gp_penalty_global', penalty_global)
 
         if summary and not config.PRETRAIN_COARSE_NETWORK:
             # summary the magnitude of gradients from different losses w.r.t. predicted image
@@ -288,7 +316,7 @@ class InpaintGCModel(Model):
         # generate mask, 1 represents masked point
         # batch_raw, masks_raw = tf.split(batch_data, 2, axis=2)
         #masks = tf.cast(masks_raw[0:1, :, :, 0:1] > 127.5, tf.float32)
-
+        #batch_mask = tf.cast(batch_mask[0:1, :, :, 0:1] > 127.5, tf.float32)
         batch_pos = batch_data / 127.5 - 1.
         batch_incomplete = batch_pos * (1. - batch_mask)
         # inpaint

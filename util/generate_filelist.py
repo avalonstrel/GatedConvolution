@@ -14,7 +14,7 @@ def tar2list(filename, tarname, prefix):
     tar = tarfile.open(tarname)
     with open(filename, 'w') as f:
         for tarinfo in tar:
-            if tarinfo.isfile() and os.path.exists(os.path.join(prefix, tarinfo.name)):
+            if tarinfo.isfile(): #and os.path.exists(os.path.join(prefix, tarinfo.name)):
                 f.write(os.path.join(prefix, tarinfo.name)+"\n")
 
 def places2list(filename, dataset_path='/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/data_256/'):
@@ -48,9 +48,10 @@ def placesval2list(filename, dataset_path='/unsullied/sharefs/linhangyu/Inpainti
                             if file[-3:] == 'jpg':
                                 #print(os.path.join(dataset_path,d,dd,file))
                                 f.write(os.path.join(dataset_path,d,dd,file)+"\n")
-places_path = '/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData'
+horse_path = "/unsullied/sharefs/linhangyu/Inpainting/Data/ImagenetData/horse"
+#places_path = '/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData'
 #places2list("/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/train_flist.txt", dataset_path='/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/data_256/')
-tar2list("/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/train_flist2.txt","/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/train_256_places365standard.tar", places_path)
+tar2list("horse_imagenet_flist.txt","/Users/linhangyu/Downloads/n02389026/horse.tar", horse_path)
 #tar2list("/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/train_large_list.txt","/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/train_large_places365standard.tar")
 #tar2list("/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/val_list.txt","/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/val_256.tar")
 #tar2list("/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/test_list.txt","/unsullied/sharefs/linhangyu/Inpainting/Data/PlacesData/test_256.tar")

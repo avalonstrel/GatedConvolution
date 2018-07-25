@@ -5,17 +5,19 @@ import time
 import numpy as np
 import cv2
 import tensorflow as tf
-
+from bs4 import BeautifulSoup
+import pickle as pkl
+#from pycocotools.coco import COCO
 from neuralgym.data import feeding_queue_runner as queue_runner
 from neuralgym.data.dataset import Dataset
 from neuralgym.ops.image_ops import np_random_crop
 
-
+#from pycocotools.coco import COCO
 logger = logging.getLogger()
 READER_LOCK = threading.Lock()
 
 
-class MaskFromFNames(Dataset):
+class DataMaskFromFNames(Dataset):
     """Data pipeline from list of filenames. Read th filenames and return masks from bbox or segmentation
     Args:
         fnamelists (list): A list of filenames or tuple of filenames, e.g.
@@ -53,12 +55,13 @@ class MaskFromFNames(Dataset):
             annotation_fnames = f.read().splitlines()
         fnames = list(zip(image_fnames, annatation_fnames))
     """
-
+    # shape = [[256,256,3],[256,256,1]]
     def __init__(self, fnamelists, shapes, random=False, random_crop=False,
                  fn_preprocess=None, dtypes=tf.float32,
-                 enqueue_size=32, queue_size=256, nthreads=16,
+                 enqueue_size=32, queue_size=256, nthreads=8,
                  return_fnames=False, from_bbox=True, filetype='image'):
         self.fnamelists_ = self.process_fnamelists(fnamelists)
+        #print(self.fnamelists_)
         self.file_length = len(self.fnamelists_)
         self.random = random
         self.random_crop = random_crop
@@ -71,10 +74,12 @@ class MaskFromFNames(Dataset):
             self.dtypes = dtypes
         else:
             self.dtypes = [dtypes] * len(self.fnamelists_[0])
+
         self.return_fnames = return_fnames
         self.batch_phs = [
             tf.placeholder(dtype, [None] + shape)
             for dtype, shape in zip(self.dtypes, self.shapes)]
+
         if self.return_fnames:
             self.shapes += [[]]
             self.dtypes += [tf.string]
@@ -147,8 +152,33 @@ class MaskFromFNames(Dataset):
         if self.fn_preprocess:
             img = self.fn_preprocess(img)
         return img, False
+    # Crowd Human
+    def read_ch_bbox(self, path):
+        aux_dict = pkl.load(open(path, 'rb'))
+        bboxs = aux_dict["bbox"]
+        bbox = random.choice(bboxs)
+        extra = bbox['extra']
+        shape = aux_dict["shape"]
+        while 'ignore' in extra and extra['ignore'] == 1 and bbox['fbox'][0] < 0 and bbox['fbox'][1] < 0:
+            bbox = random.choice(bboxs)
+            extra = bbox['extra']
+        fbox = bbox['fbox']
+        return [[fbox[1],fbox[0],fbox[3],fbox[2]]], (shape[1], shape[0])
+
+    def read_coco_bbox(self, path):
+        aux_dict = pkl.load(open(path, 'rb'))
+        bbox = aux_dict["bbox"]
+        shape = aux_dict["shape"]
+        #bbox = random.choice(bbox)
+        #fbox = bbox['fbox']
+        return [[int(bbox[1]), int(bbox[0]), int(bbox[3]), int(bbox[2])]], (shape[1], shape[0])
 
     def read_bbox_shapes(self, filename):
+        if filename[-3:] == 'pkl' and 'Human' in filename:
+            return self.read_ch_bbox(filename)
+        elif filename[-3:] == 'pkl' and 'COCO' in filename:
+            return self.read_coco_bbox(filename)
+
         #file_path = os.path.join(self.path, "Annotations", filename)
         with open(filename, 'r') as reader:
             xml = reader.read()
@@ -167,11 +197,11 @@ class MaskFromFNames(Dataset):
 
             bbox = [bndbox['ymin'], bndbox['xmin'], bndbox['ymax']-bndbox['ymin'], bndbox['xmax']-bndbox['xmin']]
             bndboxs.append(bbox)
-        print(bndboxs, size)
+        #print(bndboxs, size)
         return bndboxs, (size['height'], size['width'])
 
 
-    def bbox2mask(self, bbox, height, weight, delta_h, delta_w, name='mask'):
+    def bbox2mask(self, bbox, height, width, delta_h, delta_w, name='mask'):
         """Generate mask tensor from bbox.
 
         Args:
@@ -185,8 +215,8 @@ class MaskFromFNames(Dataset):
         """
 
         mask = np.zeros(( height, width, 1), np.float32)
-        h = np.random.randint(delta_h//2+1)
-        w = np.random.randint(delta_w//2+1)
+        h = int(0.1*bbox[2])+np.random.randint(int(bbox[2]*0.2+1))
+        w = int(0.1*bbox[3])+np.random.randint(int(bbox[3]*0.2)+1)
         mask[bbox[0]+h:bbox[0]+bbox[2]-h,
              bbox[1]+w:bbox[1]+bbox[3]-w, :] = 1.
         return mask
@@ -204,27 +234,42 @@ class MaskFromFNames(Dataset):
                         filenames = self.fnamelists_[self.index]
                         self.index = (self.index + 1) % self.file_length
                 imgs = []
+                masks = []
                 random_h = None
                 random_w = None
-                for i in range(len(filenames)):
-                    #img, error = self.read_img(filenames[i])
-                    bboxs, shape = self.read_bbox(filenames[i])
-                    img = self.bbox2mask(bboxs[0], shape[0], shape[1], 32, 32 )
+                #print(list(filenames))
+                for i in range(1):
+                    #print(filenames[i])
+                    img, error = self.read_img(filenames[0])
+                    bboxs, shape = self.read_bbox_shapes(filenames[1])
+                    mask = self.bbox2mask(bboxs[0], shape[0], shape[1], 32, 32 )
 
                     if self.random_crop:
                         img, random_h_, random_w_ = np_random_crop(
                             img, tuple(self.shapes[i][:-1]),
                             random_h, random_w, align=False)  # use last rand
+                        mask, random_h, random_w = np_random_crop(
+                            mask, tuple(self.shapes[i][:-1]),
+                            random_h, random_w, align=False)  # use last rand
                     else:
-                        if img is None:
+                        if img is None or mask is None:
                             continue
                         img = cv2.resize(img, tuple(self.shapes[i][:-1]))
-                    imgs.append(img)
+                        mask = cv2.resize(mask, tuple(self.shapes[i][:-1]))
+                    #assert not np.isnan(((img>0).astype(np.int8)).reshape(self.shapes[i]))
+
+                    mask = ((mask>0).astype(np.int8)).reshape((self.shapes[i][:-1]+[1,]))
+                    if(np.max(mask) == 0):
+                        print(bboxs[0], shape)
+                        error = True
+                    else:
+                        imgs.append(img)
+                        masks.append(mask)
 
             if self.return_fnames:
-                batch_data.append(imgs + list(filenames))
+                batch_data.append(imgs + masks + list(filenames))
             else:
-                batch_data.append(imgs)
+                batch_data.append(imgs + masks)
         return zip(*batch_data)
 
     def _maybe_download_and_extract(self):

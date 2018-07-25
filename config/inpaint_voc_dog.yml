@@ -1,10 +1,10 @@
 # parameters
-DATASET: 'horse'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
-MASKDATASET: 'horse_mask'
+DATASET: 'dog'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+MASKDATASET: 'dog_mask'
 RANDOM_CROP: False
 MASKFROMFILE: True
 VAL: False
-LOG_DIR: full_model_voc_horse_256
+LOG_DIR: full_model_voc_dog_256
 MODEL_RESTORE: ''  # '20180115220926508503_jyugpu0_places2_NORMAL_wgan_gp_full_model'
 
 GAN: 'sn_pgan'  # 'dcgan', 'lsgan', 'wgan_gp', 'one_wgan_gp'
@@ -57,13 +57,13 @@ DATA_FLIST:
     '../Data/MaskData/irrmask_flist.txt',
     '../Data/MaskData/irrmask_flist.txt'
   ]
-  horse: [
-    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_train_flist.txt',
-    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_val_flist.txt'
+  dog: [
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_dog_train_flist.txt',
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_dog_val_flist.txt'
   ]
-  horse_mask: [
-    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_bbox_train_flist.txt',
-    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_bbox_val_flist.txt'
+  dog_mask: [
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_dog_train_bbox_flist.txt',
+    '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_dog_val_bbox_flist.txt'
   ]
 
 STATIC_VIEW_SIZE: 30
