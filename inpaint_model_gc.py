@@ -236,7 +236,7 @@ class InpaintGCModel(Model):
             # apply penalty
             penalty_global = gradients_penalty(interpolates_global, dout_global, mask=batch_mask)
             losses['gp_loss'] = config.WGAN_GP_LAMBDA * penalty_global
-            losses['d_loss'] = losses['d_loss'] + losses['gp_loss']
+            #losses['d_loss'] = losses['d_loss'] + losses['gp_loss']
 
             if summary and not config.PRETRAIN_COARSE_NETWORK:
                 gradients_summary(g_loss_global, batch_predicted, name='g_loss_global')

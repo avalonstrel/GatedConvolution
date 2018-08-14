@@ -14,7 +14,6 @@ from trainer import Trainer
 
 logger = logging.getLogger()
 
-
 def multigpu_graph_def(model, data_mask_data, guides, config, gpu_id=0, loss_type='g'):
 
     files = None
