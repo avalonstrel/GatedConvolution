@@ -27,14 +27,16 @@ def generate_data_batch(images_path, masks_path, batch_size=50, max_num=750):
         #print(file, mask_path)
         file = "seg_img_{}.JPEG".format(i)
         mask_path = "seg_mask_{}.JPEG".format(i)
+
         if i > max_num:
             break
         if (file[-1] != "g" and file[-1] != "G") or (mask_path[-1] != "G" and mask_path[-1] != "g") :
             continue
-        print(i)
+        #print(i,os.path.join(images_path, file), os.path.join(masks_path, mask_path))
+
         image = cv2.imread(os.path.join(images_path, file))
         mask = cv2.imread(os.path.join(masks_path, mask_path))
-
+        #print(image.shape, mask.shape)
         assert image.shape == mask.shape
 
         h, w, _ = image.shape

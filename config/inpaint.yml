@@ -3,7 +3,7 @@ DATASET: 'places2'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'citysca
 MASKDATASET: 'irrmask'
 RANDOM_CROP: False
 MASKFROMFILE: False
-VAL: False
+VAL: True
 LOG_DIR: full_model_places2_256
 MODEL_RESTORE: ''  # '20180115220926508503_jyugpu0_places2_NORMAL_wgan_gp_full_model'
 

@@ -6,7 +6,7 @@ import tensorflow as tf
 import neuralgym as ng
 from bs4 import BeautifulSoup
 from inpaint_model_gc import InpaintGCModel
-
+from inpaint_model import InpaintCAModel
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--image', default='', type=str,
@@ -17,6 +17,8 @@ parser.add_argument('--output', default='output.png', type=str,
                     help='Where to write output.')
 parser.add_argument('--checkpoint_dir', default='', type=str,
                     help='The directory of tensorflow checkpoint.')
+parser.add_argument('--model', default='CA', type=str,
+                    help='The model you use')
 
 def read_bbox_shapes(filename):
     #file_path = os.path.join(self.path, "Annotations", filename)
@@ -54,7 +56,7 @@ def bbox2mask(bbox, height, width, delta_h, delta_w, name='mask'):
 
     """
 
-    mask = np.zeros(( height, width, 1), np.float32)
+    mask = np.zeros(( height, width, 3), np.float32)
     h = int(0.1*bbox[2])+np.random.randint(int(bbox[2]*0.2+1))
     w = int(0.1*bbox[3])+np.random.randint(int(bbox[3]*0.2)+1)
     mask[bbox[0]+h:bbox[0]+bbox[2]-h,
@@ -88,7 +90,7 @@ def generate_data_batch(images_path, masks_path, batch_size=50, max_num = 1000):
         image = image[:h//grid*grid, :w//grid*grid, :]
         mask = mask[:h//grid*grid, :w//grid*grid, :]
         image = cv2.resize(image, (256,256))
-        mask = cv2.resize(mask, (256,256)).reshape((256,256,1))
+        mask = cv2.resize(mask, (256,256)).reshape((256,256,3))
         image = np.expand_dims(image, 0)
         mask = np.expand_dims(mask, 0)
         mask01 = (mask>0).astype(np.float32)
@@ -113,16 +115,22 @@ if __name__ == "__main__":
     ng.get_gpus(1)
     args = parser.parse_args()
 
-    model = InpaintGCModel()
-
+    if args.model == "GC":
+        model = InpaintGCModel()
+    else:
+        model = InpaintCAModel()
 
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
     with tf.Session(config=sess_config) as sess:
-        input_image = tf.placeholder(tf.float32, shape=[1, 256, 256, 3])
-        input_mask = tf.placeholder(tf.float32, shape=[1, 256, 256, 1])
-        input_guide = tf.placeholder(tf.float32, shape=[1, 256, 256, 1])
-        output = model.build_server_graph(input_image, input_mask, input_guide )
+        if args.model == "GC":
+            input_image = tf.placeholder(tf.float32, shape=[1, 256, 256, 3])
+            input_mask = tf.placeholder(tf.float32, shape=[1, 256, 256, 1])
+            input_guide = tf.placeholder(tf.float32, shape=[1, 256, 256, 1])
+            output = model.build_server_graph(input_image, input_mask, input_guide )
+        else:
+            input_image = tf.placeholder(tf.float32, shape=[1, 256, 512, 3])
+            output = model.build_server_graph(input_image)
         output = (output + 1.) * 127.5
         output = tf.reverse(output, [-1])
         output = tf.saturate_cast(output, tf.uint8)
@@ -142,9 +150,17 @@ if __name__ == "__main__":
         for gt_imgs, input_images, file_names, mask_names in generate_data_batch(args.image, args.mask):
             #input_image = tf.constant(input_image, dtype=tf.float32)
             for gt_img, (input_img, mask), file_name in zip(gt_imgs, input_images, file_names):
-                result = sess.run(output, feed_dict={input_image:input_img, input_mask:mask, input_guide:np.ones(mask.shape)})
+                if args.model == "GC":
+                    mask = mask[:,:,:,:1]
+                    result = sess.run(output, feed_dict={input_image:input_img, input_mask:mask, input_guide:np.ones(mask.shape)})
+                else:
+                    mask = mask*255
+                    input_img = input_img + mask
+
+                    input_image_ = np.concatenate([input_img, mask], axis=2)
+                    result = sess.run(output, feed_dict={input_image:input_image_})
                 #print("Result shape:{}".format(result.shape))
-                result = np.concatenate([gt_img[:,:,:,::-1], input_img[:,:,:,::-1], result[:,:,:,::-1]], axis=2)
+                result = np.concatenate([gt_img[:,:,:,::-1], input_image_[:,:,:,::-1], result], axis=2)
                 output_name = os.path.join(args.output, "output_"+file_name)
                 #input_name = os.path.join(args.output, "input_"+file_name)
                 print(output_name)

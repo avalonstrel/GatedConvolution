@@ -68,13 +68,6 @@ if __name__ == "__main__":
         fnames, config.IMG_SHAPES, random_crop=config.RANDOM_CROP)
         images = data_mask_data.data_pipeline(config.BATCH_SIZE)
         masks = None
-    # # Mask Data
-    # with open(config.DATA_FLIST[config.MASKDATASET][0]) as f:
-    #     fnames = f.read().splitlines()
-    # mask_data = MaskFromFNames(
-    #     fnames, config.MASK_SHAPES, random_crop=config.RANDOM_CROP)
-    # masks = mask_data.data_pipeline(config.BATCH_SIZE)
-
 
     guides = None
     # main model
