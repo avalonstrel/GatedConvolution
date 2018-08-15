@@ -1,1 +1,0 @@
-rlaunch --cpu=4 -P1 --gpu=1 --memory=60000  -- python3 test_voc.py --image /unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_train_flist.txt --mask /unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_train_bbox_flist.txt --output test_result/imagenet_horse_voc --checkpoint_dir release_models/release_imagenet_256
