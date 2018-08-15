@@ -1,1 +1,1 @@
-An Reimplemented version of DeepFillv2.
+An Reimplemented version of DeepFillv2. And the main files I modify is inpaint_ops.py, inpaint_model_gc.py, and train.py. I add mask_from_fnames.py for add masks from Data(voc or coco). And I will refactor this project soon. ( To use this Project, you can refer the official version of DeepFillv1 since it is modified from the DeepFillv1)
