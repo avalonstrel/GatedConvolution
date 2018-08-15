@@ -23,9 +23,9 @@ The main files I modify is inpaint_ops.py, inpaint_model_gc.py, and train.py. I 
 4. Still have questions?
     * If you still have questions (e.g.: How filelist looks like? How to use multi-gpus? How to do batch testing?), please first search over closed issues. If the problem is not solved, please open a new issue.(Refer the [DeepFillv1](https://github.com/JiahuiYu/generative_inpainting))
 
-##Results(Still Testing)
+## Results(Still Testing)
 
-##Pretrained Model(Still Testing)
+## Pretrained Model(Still Testing)
 
 ## Acknowledgments
 My project acknowledge the official code DeepFillv1 and SNGAN. Especially, thanks for the authors of this amazing algorithm.
