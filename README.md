@@ -1,6 +1,7 @@
 
 # An Reimplemented version of DeepFillv2.
-
+ I reimplement this model in pytorch(which is more familiar to me) in https://github.com/avalonstrel/GatedConvolution_pytorch. I provide a pre-trained model on Places2 and some results.
+ This version will not be updated. Sorry.
 **Update (Aug, 2018)**:
 The main files I modify is inpaint_ops.py, inpaint_model_gc.py, and train.py. I add mask_from_fnames.py for add masks from Data(voc or coco). And I will refactor this project soon. ( To use this Project, you can refer the official version of DeepFillv1 since it is modified from the DeepFillv1)
 
